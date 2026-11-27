@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   qa:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -36,5 +36,5 @@ jobs:
           path: |
             docs/G2-results.json
             docs/browser-results.json
-            ../efw_*_preview.png
+            ${{ github.workspace }}/../efw_*_preview.png
           if-no-files-found: warn
