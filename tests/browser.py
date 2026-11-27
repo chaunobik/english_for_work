@@ -18,7 +18,7 @@ with sync_playwright() as p:
     context=browser.new_context(viewport={'width':1440,'height':900},permissions=['clipboard-read','clipboard-write','microphone'],accept_downloads=True)
     page=context.new_page();errors=[];external=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('request',lambda r:external.append(r.url) if not (r.url.startswith(url) or r.url.startswith('blob:'+url)) else None)
     def nav(hash):
-        page.goto(url+'#'+hash);page.wait_for_selector('main h1');expect(page.locator('main h1').first).not_to_have_text('Không tải được khóa học');page.wait_for_timeout(80)
+        page.goto(url+'#'+(hash+'/overview' if hash.startswith('lesson/') else hash));page.wait_for_selector('main h1');expect(page.locator('main h1').first).not_to_have_text('Không tải được khóa học');page.wait_for_timeout(80)
     def g3_home():
         nav('home');expect(page.get_by_text('0/156',exact=True)).to_be_visible();expect(page.get_by_role('link',name='Mở bài học hôm nay →')).to_have_attribute('href','#lesson/1');page.screenshot(path=str(ARTIFACTS/'efw_dashboard_preview.png'),full_page=True)
     run('G3-01 dashboard initial, no fake progress',g3_home)
@@ -62,5 +62,26 @@ with sync_playwright() as p:
     def g6_offline():
         nav('home');page.evaluate('navigator.serviceWorker.ready');page.wait_for_function('navigator.serviceWorker.controller !== null',timeout=10000);context.set_offline(True);page.reload();expect(page.get_by_role('link',name='Mở bài học hôm nay →')).to_be_visible(timeout=10000);nav('vocab/library/1');expect(page.get_by_text('1390 mục',exact=True)).to_be_visible();context.set_offline(False)
     run('G6-02 offline after cache, course and vocabulary still accessible',g6_offline)
+
+    def guided_v2():
+        page.goto(url+'#lesson/2');expect(page.locator('#guided-focus')).to_be_visible();expect(page.get_by_role('link',name='Xem tổng quan')).to_be_visible()
+        # Legacy listening checkbox is completed by G3-03; other steps still editable.
+        page.locator('[data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-step-title')).to_contain_text('Học mẫu')
+        page.locator('#guide-note').fill('My guided notes <script>unsafe</script>')
+        page.locator('#guide-complete').click();expect(page.locator('#guide-step-title')).to_contain_text('Thực hành')
+        page.reload();expect(page.locator('#guide-step-title')).to_contain_text('Thực hành')
+        page.locator('[data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-note')).to_have_value('My guided notes <script>unsafe</script>')
+        page.locator('[data-action="guide-select:language-1"]').click();assert page.locator('.guide-card').count()>0
+        page.locator('[data-action="guide-select:vocab-1"]').click();assert page.locator('.guide-card').count()>0
+        page.locator('[data-action="guide-select:summary"]').click();expect(page.locator('#guide-difficulty')).to_be_visible();page.locator('#guide-difficulty').select_option('hard');page.reload();expect(page.locator('#guide-difficulty')).to_have_value('hard')
+        for day,kind in [(1,'ĐẦU VÀO'),(6,'KIỂM TRA'),(7,'NGÀY TÙY CHỌN'),(181,'KIỂM TRA'),(182,'NGÀY TÙY CHỌN')]:
+            page.goto(url+'#lesson/'+str(day));expect(page.locator('main .eyebrow').first).to_contain_text(kind)
+            if day in [6,181]:assert page.locator('a[href^="#assessment/"]').count()>0
+        page.goto(url+'#lesson/2');page.locator('[data-action="guide-select:listen-1"]').click()
+        for width in [320,390,1440]:
+            page.set_viewport_size({'width':width,'height':900});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),width
+        assert errors==[],errors
+        page.screenshot(path=str(ARTIFACTS/'efw_guided_preview.png'),full_page=True)
+    run('G8 guided steps, legacy state, notes/resume, inline cards, special days, responsive',guided_v2)
     browser.close()
 server.shutdown();(ROOT/'docs/browser-results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2));print(f'{len(results)} browser acceptance tests passed')

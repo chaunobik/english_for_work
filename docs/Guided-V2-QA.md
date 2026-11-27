@@ -1,0 +1,3 @@
+# Guided Learning V2
+
+Acceptance criteria: 182 original lessons, exact 312 core hours + 20 optional minutes per study day; baseline, weekly assessment and rest distinct; explicit next step, source link, output and note; no reserved assessment resource in normal lesson; correct V1 state migration and V2 backup; per-step resume, inline vocabulary, overview, responsive layouts and live QA. Existing source data unchanged. User progress remains browser-local. AI prompts are copied only; no API or private data sent automatically. The timed source blocks are split only when their minutes sum to the stated skill total; otherwise the original instruction remains one complete step. Tests run on feature branch before merge; no production publish before successful QA.

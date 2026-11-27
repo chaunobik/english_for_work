@@ -50,8 +50,84 @@ export function validateBackup(x,d){
  if(!record(x)||x.version!==1||!record(x.days)||!record(x.cards)||!record(x.scores)||!record(x.settings)||!Array.isArray(x.errors)||!Number.isInteger(x.lastDay)||x.lastDay<1||x.lastDay>197)throw Error('File sao lưu sai định dạng');
  const out=fresh(),ids=new Set(cardItems(d).map(c=>c.id));out.lastDay=x.lastDay;out.settings={advanced:x.settings.advanced===true,dark:x.settings.dark===true};
  const str=v=>typeof v==='string'&&v.length<=20000;const checkDate=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T12:00:00'));
- for(const [k,v] of Object.entries(x.days)){if(!/^D\d{3}$/.test(k)||+k.slice(1)<1||+k.slice(1)>197||!record(v)||!record(v.checks)||Object.entries(v.checks).some(([a,b])=>!['listen','speak','pronounce','language','write','rest','vocab'].includes(a)||typeof b!=='boolean')||!numeric(v.coreMin??0,0,1440)||!numeric(v.vocabMin??0,0,1440)||!str(v.notes??'')||!str(v.writing??'')||!str(v.feedback??''))throw Error('Dữ liệu ngày không hợp lệ');out.days[k]={checks:{...v.checks},coreMin:v.coreMin??0,vocabMin:v.vocabMin??0,notes:v.notes??'',writing:v.writing??'',feedback:v.feedback??''};}
+ for(const [k,v] of Object.entries(x.days)){if(!/^D\d{3}$/.test(k)||+k.slice(1)<1||+k.slice(1)>197||!record(v)||!record(v.checks)||Object.entries(v.checks).some(([a,b])=>!['listen','speak','pronounce','language','write','rest','vocab'].includes(a)||typeof b!=='boolean')||!numeric(v.coreMin??0,0,1440)||!numeric(v.vocabMin??0,0,1440)||!str(v.notes??'')||!str(v.writing??'')||!str(v.feedback??''))throw Error('Dữ liệu ngày không hợp lệ');out.days[k]={checks:{...v.checks},coreMin:v.coreMin??0,vocabMin:v.vocabMin??0,notes:v.notes??'',writing:v.writing??'',feedback:v.feedback??''};if(v.guided!==undefined){
+ const g=v.guided,plan=guidedPlan(d.lessons[+k.slice(1)-1]||d.lessons[181]),allowed=new Set(plan.steps.map(s=>s.id));
+ if(!record(g)||!record(g.done)||!record(g.notes)||typeof g.cursor!=='string'||(g.cursor!==''&&g.cursor!=='summary'&&!allowed.has(g.cursor))||!['','easy','normal','hard'].includes(g.difficulty??'')||Object.entries(g.done).some(([a,b])=>!allowed.has(a)||typeof b!=='boolean')||Object.entries(g.notes).some(([a,b])=>!allowed.has(a)||!str(b)))throw Error('Dữ liệu hướng dẫn không hợp lệ');
+ out.days[k].guided={cursor:g.cursor,done:{...g.done},notes:{...g.notes},difficulty:g.difficulty??''};
+ }} 
  for(const [k,v] of Object.entries(x.cards)){if(!ids.has(k)||!record(v)||!Number.isInteger(v.level)||v.level<0||v.level>3||!Number.isInteger(v.streak)||v.streak<0||v.streak>5||!Number.isInteger(v.reviews)||v.reviews<1||!checkDate(v.due)||!checkDate(v.last))throw Error('Dữ liệu ôn không hợp lệ');out.cards[k]={level:v.level,streak:v.streak,reviews:v.reviews,due:v.due,last:v.last};}
  for(const [k,v] of Object.entries(x.scores)){if(!/^(?:[1-9]|1\d|2[0-6])$/.test(k)||!record(v)||!Array.isArray(v.values)||v.values.length!==5||v.values.some(n=>n!==null&&!numeric(n,0,10))||!str(v.notes??'')||!str(v.writing??''))throw Error('Điểm không hợp lệ');out.scores[k]={values:v.values.slice(),notes:v.notes??'',writing:v.writing??''};}
  if(x.errors.length>1000||x.errors.some(e=>!record(e)||!str(e.text)||!checkDate(e.date)))throw Error('Nhật ký không hợp lệ');out.errors=x.errors.map(e=>({text:e.text,date:e.date}));return out;
+}
+
+/** Guided lesson plan derived from the original timed instructions; no new resource IDs. */
+export const guidedSkills=[
+ ['listen','Luyện nghe',6],['speak','Luyện nói',7],['pronounce','Phát âm',8],
+ ['language','Cụm từ & ngữ pháp',9],['write','Luyện viết',10]
+];
+const outcomes={
+ listen:'Ghi lại kết quả nghe hoặc chi tiết nghe được; kiểm tra theo yêu cầu của bước.',
+ speak:'Thực hiện nhiệm vụ bằng tiếng Anh; ghi kết quả hoặc lỗi cần sửa.',
+ pronounce:'Luyện đúng âm/câu mục tiêu và tự kiểm tra bằng bản ghi hoặc mẫu.',
+ language:'Gợi nhớ trước khi xem đáp án; vận dụng cụm/cấu trúc trong câu của mình.',
+ write:'Lưu bài viết hoặc phần chỉnh sửa theo yêu cầu.',
+ vocab:'Đánh giá bằng khả năng thực tế; ưu tiên từ yếu.',
+ rest:'Có thể nghỉ hoặc ghi một lỗi cần ôn.'
+};
+const captions={
+ listen:['Dự đoán / nghe lấy ý chính','Nghe và lấy chi tiết','Đối chiếu và sửa lỗi','Nghe lại / chép đoạn khó','Tóm tắt'],
+ speak:['Học mẫu / chuẩn bị','Thực hành hội thoại','Nhận phản hồi','Nói lại'],
+ pronounce:['Nghe và nhận diện','Luyện nói theo mẫu','Ghi âm và sửa'],
+ language:['Gợi nhớ cụm từ','Vận dụng mẫu câu'],
+ write:['Đọc mẫu / lập dàn ý','Tự viết','Rà soát']
+};
+export function guidedPlan(l){
+ const n=+l[0].slice(1), rest=+l[12]===0, exam=+l[2]===6;
+ const groups=[];
+ const make=(key,label,mins,detail,i,title)=>({id:key+'-'+(i+1),key,label,title,minutes:mins,detail,output:outcomes[key]});
+ if(rest){
+  groups.push({key:'rest',label:n===182?'Tổng kết / nghỉ tùy chọn':'Nghỉ hoặc ôn nhẹ',steps:[make('rest','Ngày nghỉ',0,[l[6],l[7],l[8],l[9].split('\nNgoài giờ chính:')[0],l[10]].filter(t=>t&&t!=='—').join('\n'),0,n===182?'Đánh giá lại nếu đủ thời gian':'Chọn nghỉ hoặc ôn nhẹ')]});
+ }else for(const [key,label,col] of guidedSkills){
+  const raw=l[col].split('\nNgoài giờ chính:')[0].trim(),first=raw.match(/^(\d+)\s*[′’']/);
+  if(!first)throw Error(l[0]+' thiếu thời lượng '+key);
+  const total=+first[1],body=raw.slice(first[0].length).replace(/^\s*:\s*/,'').trim(),matches=[...body.matchAll(/(\d+)\s*[′’']/g)];
+  let sum=0,selected=[];
+  if(n!==1&&!exam){
+   for(const m of matches){if(sum+Number(m[1])>total)break;selected.push(m);sum+=Number(m[1]);if(sum===total)break;}
+  }
+  let steps=[];
+  if(sum===total&&selected.length>1){
+   const prefix=body.slice(0,selected[0].index).trim();
+   selected.forEach((m,i)=>{
+    let detail=body.slice(m.index+m[0].length,selected[i+1]?.index??body.length).trim().replace(/^[;:]\s*/,'');
+    if(i===0&&prefix)detail=prefix+' '+detail;
+    // Do not give a misleading label for varying listening sequences; use exact action text.
+    const short=detail.split(/[.;\n]/).find(Boolean)||label;
+    const title=key==='listen'?'Lượt '+(i+1)+' · '+label:(captions[key]?.[i]||label);
+    steps.push(make(key,label,+m[1],detail,i,title));
+   });
+  }else steps=[make(key,label,total,body,0,n===1?'Đánh giá đầu vào · '+label:exam?'Kiểm tra độc lập · '+label:label)];
+  groups.push({key,label,steps});
+ }
+ if(!rest){
+  const v=[['Sàng lọc từ mới',2,'Kiểm tra từ được phân bổ hôm nay; bỏ qua từ đã dùng thành thạo.'],['Học từ yếu',5,'Học sâu tối đa 3–5 từ: nghĩa, cụm đi kèm và ví dụ.'],['Nghe và phát âm',3,'Nghe phát âm từ mục tiêu rồi nhắc lại.'],['Ôn đến hạn',7,'Ưu tiên thẻ chưa nhớ; không bắt buộc xử lý hết hàng đợi trong 7 phút.'],['Vận dụng',3,'Tự đặt câu bằng từ vừa học, không nhìn đáp án.']];
+  groups.push({key:'vocab',label:'Từ vựng bổ sung',steps:v.map(([t,m,d],i)=>make('vocab','Từ vựng bổ sung',m,d,i,t))});
+ }
+ return {kind:rest?'rest':n===1?'baseline':exam?'assessment':'practice',groups,steps:groups.flatMap(g=>g.steps)};
+}
+export function guideDay(d){
+ return d.guided??={cursor:'',done:{},notes:{},difficulty:''};
+}
+export function stepDone(d,s){return d.checks[s.key]===true||d.guided?.done?.[s.id]===true;}
+export function markGuided(d,plan,id,checked=true){
+ const step=plan.steps.find(s=>s.id===id);if(!step)return;
+ const g=guideDay(d),group=plan.groups.find(x=>x.key===step.key);
+ // Expand legacy completed skills before editing one step.
+ if(d.checks[step.key]===true)for(const s of group.steps)g.done[s.id]=true;
+ g.done[id]=checked;d.checks[step.key]=group.steps.every(s=>g.done[s.id]===true);
+}
+export function syncGuideCheck(d,plan,key,checked){
+ const group=plan.groups.find(g=>g.key===key);if(!group)return;
+ const g=guideDay(d);for(const s of group.steps)g.done[s.id]=checked;
+ d.checks[key]=checked;
 }
