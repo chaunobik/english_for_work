@@ -66,18 +66,18 @@ with sync_playwright() as p:
     def guided_v2():
         page.goto(url+'#lesson/2');expect(page.locator('#guided-focus')).to_be_visible();expect(page.get_by_role('link',name='Xem tổng quan')).to_be_visible()
         # Legacy listening checkbox is completed by G3-03; other steps still editable.
-        page.locator('[data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-step-title')).to_contain_text('Học mẫu')
+        page.locator('.guide-nav [data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-step-title')).to_contain_text('Học mẫu')
         page.locator('#guide-note').fill('My guided notes <script>unsafe</script>')
         page.locator('#guide-complete').click();expect(page.locator('#guide-step-title')).to_contain_text('Thực hành')
         page.reload();expect(page.locator('#guide-step-title')).to_contain_text('Thực hành')
-        page.locator('[data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-note')).to_have_value('My guided notes <script>unsafe</script>')
-        page.locator('[data-action="guide-select:language-1"]').click();assert page.locator('.guide-card').count()>0
-        page.locator('[data-action="guide-select:vocab-1"]').click();assert page.locator('.guide-card').count()>0
-        page.locator('[data-action="guide-select:summary"]').click();expect(page.locator('#guide-difficulty')).to_be_visible();page.locator('#guide-difficulty').select_option('hard');page.reload();expect(page.locator('#guide-difficulty')).to_have_value('hard')
+        page.locator('.guide-nav [data-action="guide-select:speak-1"]').click();expect(page.locator('#guide-note')).to_have_value('My guided notes <script>unsafe</script>')
+        page.locator('.guide-nav [data-action="guide-select:language-1"]').click();assert page.locator('.guide-card').count()>0
+        page.locator('.guide-nav [data-action="guide-select:vocab-1"]').click();assert page.locator('.guide-card').count()>0
+        page.locator('.guide-nav [data-action="guide-select:summary"]').click();expect(page.locator('#guide-difficulty')).to_be_visible();page.locator('#guide-difficulty').select_option('hard');page.reload();expect(page.locator('#guide-difficulty')).to_have_value('hard')
         for day,kind in [(1,'ĐẦU VÀO'),(6,'KIỂM TRA'),(7,'NGÀY TÙY CHỌN'),(181,'KIỂM TRA'),(182,'NGÀY TÙY CHỌN')]:
             page.goto(url+'#lesson/'+str(day));expect(page.locator('main .eyebrow').first).to_contain_text(kind)
             if day in [6,181]:assert page.locator('a[href^="#assessment/"]').count()>0
-        page.goto(url+'#lesson/2');page.locator('[data-action="guide-select:listen-1"]').click()
+        page.goto(url+'#lesson/2');page.locator('.guide-nav [data-action="guide-select:listen-1"]').click()
         for width in [320,390,1440]:
             page.set_viewport_size({'width':width,'height':900});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),width
         assert errors==[],errors

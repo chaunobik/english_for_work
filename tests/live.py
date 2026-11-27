@@ -36,7 +36,7 @@ with sync_playwright() as p:
     expect(page.locator('#guide-step-title')).to_contain_text('Luyện nói')
     page.reload()
     expect(page.locator('#guide-step-title')).to_contain_text('Luyện nói')
-    page.locator('[data-action="guide-select:listen-1"]').click()
+    page.locator('.guide-nav [data-action="guide-select:listen-1"]').click()
     expect(page.locator('#guide-note')).to_have_value('Live QA note')
     page.goto(base+'#vocab/library/1')
     expect(page.get_by_text('1390 mục',exact=True)).to_be_visible()
