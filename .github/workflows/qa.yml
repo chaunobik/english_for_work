@@ -36,5 +36,5 @@ jobs:
           path: |
             docs/G2-results.json
             docs/browser-results.json
-            ${{ github.workspace }}/../efw_*_preview.png
+            docs/qa-artifacts/*.png
           if-no-files-found: warn

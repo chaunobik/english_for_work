@@ -8,9 +8,11 @@ server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,d
 threading.Thread(target=server.serve_forever,daemon=True).start()
 url=f'http://127.0.0.1:{server.server_port}/'
 results=[]
+ARTIFACTS=ROOT/'docs'/'qa-artifacts'
+ARTIFACTS.mkdir(parents=True,exist_ok=True)
 def run(name,fn):
     try:fn();results.append({'test':name,'result':'PASS'});print('PASS',name,flush=True)
-    except Exception as e:results.append({'test':name,'result':'FAIL','error':str(e)});print('FAIL',name,str(e),flush=True);raise
+    except Exception as e:results.append({'test':name,'result':'FAIL','error':str(e)});print('FAIL',name,str(e),flush=True);(ROOT/'docs/browser-results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2));raise
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=os.getenv('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
     context=browser.new_context(viewport={'width':1440,'height':900},permissions=['clipboard-read','clipboard-write','microphone'],accept_downloads=True)
@@ -18,7 +20,7 @@ with sync_playwright() as p:
     def nav(hash):
         page.goto(url+'#'+hash);page.wait_for_selector('main h1');expect(page.locator('main h1').first).not_to_have_text('Không tải được khóa học');page.wait_for_timeout(80)
     def g3_home():
-        nav('home');expect(page.get_by_text('0/156',exact=True)).to_be_visible();expect(page.get_by_role('link',name='Mở bài học hôm nay →')).to_have_attribute('href','#lesson/1');page.screenshot(path=str(ROOT.parent/'efw_dashboard_preview.png'),full_page=True)
+        nav('home');expect(page.get_by_text('0/156',exact=True)).to_be_visible();expect(page.get_by_role('link',name='Mở bài học hôm nay →')).to_have_attribute('href','#lesson/1');page.screenshot(path=str(ARTIFACTS/'efw_dashboard_preview.png'),full_page=True)
     run('G3-01 dashboard initial, no fake progress',g3_home)
     def g3_path():
         nav('path');assert page.locator('.day-tile').count()==182;assert page.locator('details[data-week]').count()==26;assert page.locator('.day-tile[href="#lesson/182"]').count()==1
@@ -26,7 +28,7 @@ with sync_playwright() as p:
     run('G3-02 all 182 days and linked daily resources',g3_path)
     def g3_save():
         page.locator('#check-listen').check();page.locator('[data-day-field="notes"]').fill('Listen to endings <script>alert(1)</script>');page.locator('[data-day-field="writing"]').fill('I work on software.');page.locator('[data-day-field="coreMin"]').fill('42');page.locator('[data-day-field="vocabMin"]').fill('12');page.reload();expect(page.locator('#check-listen')).to_be_checked();expect(page.locator('[data-day-field="notes"]')).to_have_value('Listen to endings <script>alert(1)</script>');expect(page.locator('[data-day-field="writing"]')).to_have_value('I work on software.');expect(page.locator('[data-day-field="coreMin"]')).to_have_value('42');expect(page.locator('[data-day-field="vocabMin"]')).to_have_value('12');page.locator('[data-action="copy-task:T001"]').click();expect(page.locator('#toast')).to_contain_text('Đã sao chép');assert 'Introduce yourself' in page.evaluate('navigator.clipboard.readText()')
-        page.screenshot(path=str(ROOT.parent/'efw_lesson_preview.png'),full_page=False)
+        page.screenshot(path=str(ARTIFACTS/'efw_lesson_preview.png'),full_page=False)
     run('G3-03 actual save/reload, safe draft, clipboard',g3_save)
     def g3_b2():
         rs=json.loads((ROOT/'data/resources.json').read_text());alt=next(r for r in rs if r[2].startswith('Thay B2'));day=int(alt[0][1:]);orig=next(r for r in rs if r[0]==alt[0] and r[2]==alt[2].split(' · ')[1] and r[4]=='B2');nav('lesson/'+str(day));assert page.locator(f'main a[href="{alt[7]}"]').count()>=1;assert page.locator(f'main a[href="{orig[7]}"]').count()==0;page.locator('[data-setting="advanced"]').check();assert page.locator(f'main a[href="{orig[7]}"]').count()>=1;page.locator('[data-setting="advanced"]').uncheck();nav('lesson/6');assert page.locator('main a[href="#assessment/1"]').count()==1;exam=next(r for r in rs if r[0]=='D006' and r[2]=='Nghe kiểm tra chưa luyện');assert page.locator(f'main a[href="{exam[7]}"]').count()==0
@@ -54,8 +56,8 @@ with sync_playwright() as p:
         for vp in [{'width':1440,'height':900},{'width':390,'height':844},{'width':320,'height':700}]:
             page.set_viewport_size(vp)
             for h in ['home','path','lesson/2','lesson/181','vocab/library/1','assessment/26','progress','sources']:
-                nav(h);assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'),(vp,h,page.evaluate('document.documentElement.scrollWidth'))
-        page.set_viewport_size({'width':390,'height':844});nav('home');page.screenshot(path=str(ROOT.parent/'efw_mobile_preview.png'),full_page=True);assert errors==[],errors;assert external==[],external
+                nav(h);assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'),(vp,h,page.evaluate('document.documentElement.scrollWidth'),page.evaluate('Array.from(document.querySelectorAll("main *")).filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,8).map(e=>[e.tagName,e.className,e.getBoundingClientRect().right])'))
+        page.set_viewport_size({'width':390,'height':844});nav('home');page.screenshot(path=str(ARTIFACTS/'efw_mobile_preview.png'),full_page=True);assert errors==[],errors;assert external==[],external
     run('G6-01 desktop, 390px, 320px all routes no overflow/errors/external requests',g6_desktop_mobile)
     def g6_offline():
         nav('home');page.evaluate('navigator.serviceWorker.ready');page.wait_for_function('navigator.serviceWorker.controller !== null',timeout=10000);context.set_offline(True);page.reload();expect(page.get_by_role('link',name='Mở bài học hôm nay →')).to_be_visible(timeout=10000);nav('vocab/library/1');expect(page.get_by_text('1390 mục',exact=True)).to_be_visible();context.set_offline(False)
