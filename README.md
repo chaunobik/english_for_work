@@ -27,3 +27,6 @@ Xem docs/SRS-QA.md và GitHub Actions. Không merge trước khi QA bắt buộc
 
 ## Nguồn
 NGSL/NGSL-Spoken/BSL: Charles Browne, Brent Culligan, Joseph Phillips; https://www.newgeneralservicelist.com/ — dữ liệu phái sinh từ các danh sách được ghi công và giữ CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). IPA tham chiếu CMUdict (https://github.com/cmusphinx/cmudict/blob/master/LICENSE); không phải IPA chính thức Cambridge. Website chỉ liên kết tới các nguồn bên ngoài. Xem trang Nguồn & QA.
+
+## Triển khai GitHub Pages
+Repository owner: vào Settings → Pages → Build and deployment → Source → GitHub Actions. Không cần cung cấp token riêng. Workflow Quality gates chỉ deploy trên main sau khi QA thành công. Nếu Pages chưa được bật, job deploy sẽ thất bại an toàn; sau khi bật, chọn Actions → Quality gates → Run workflow (main). Job verify-live kiểm tra dữ liệu triển khai khớp từng byte và bài học/tiến độ/từ vựng trên URL thật. URL dự kiến: https://chaunobik.github.io/english_for_work/ (chỉ coi là live sau G7 PASS).

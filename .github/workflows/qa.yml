@@ -38,3 +38,51 @@ jobs:
             docs/browser-results.json
             docs/qa-artifacts/*.png
           if-no-files-found: warn
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: qa
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure publishing source
+        uses: actions/configure-pages@v5
+      - name: Prepare static site only
+        run: |
+          mkdir -p _site
+          cp index.html style.css app.js core.js sw.js manifest.webmanifest icon.svg .nojekyll _site/
+          cp -R data _site/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy after QA passes
+        id: deployment
+        uses: actions/deploy-pages@v4
+  verify-live:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install live smoke dependencies
+        run: |
+          pip install playwright==1.56.0
+          python -m playwright install --with-deps chromium
+      - name: G7 verify deployed content and real browser
+        env:
+          SITE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: python tests/live.py
