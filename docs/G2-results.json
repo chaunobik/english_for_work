@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "counts": {
+    "lessons": 182,
+    "resources": 522,
+    "speaking": 78,
+    "vocabulary": 1000,
+    "phrases": 390,
+    "reviews": 197,
+    "assessments": 26
+  },
+  "minutes": 18720,
+  "review_events": 5000
+}
