@@ -59,7 +59,7 @@ function guidedLesson(n){
   let detail=clean(step.detail);
   for(const {r,original} of effective(id))if(original&&rolesFor(step.key).includes(original[2]))detail=detail.split(original[3]+' · '+original[5]).join(r[3]+' · '+r[5]+' (thay B2)');
   h+='<section class="card guide-focus" id="guided-focus"><div class="row between"><p class="eyebrow">'+E(group.label)+' · BƯỚC '+(i+1)+'/'+group.steps.length+'</p><span class="pill">'+step.minutes+' phút</span></div><h2 id="guide-step-title">'+E(step.title)+'</h2><h3>Việc cần làm</h3>'+text(detail);
-  if(p.kind==='assessment'){
+  if(p.kind==='assessment'&&step.key!=='vocab'){
    h+='<div class="note">Làm độc lập, chấm bản đầu tiên; không sử dụng trợ lý AI để sửa trước khi chấm. '+A('Mở đề và nhập điểm tuần '+l[1],'#assessment/'+l[1],'btn')+'</div>';
   }else if(p.kind==='rest'&&n===182){h+='<p>'+ext('Mở EF SET 4 kỹ năng (tùy chọn)','https://www.efset.org/vi/4-skill/')+'</p>';}
   else if(step.key!=='vocab'&&step.key!=='rest'){
@@ -93,7 +93,7 @@ function guidedLesson(n){
 function guideAction(a,b){
  const n=state.lastDay,d=getDay(dayId(n)),p=guidedPlan(data.lessons[n-1]),g=guideDay(d),s=p.steps.find(x=>x.id===g.cursor);
  if(a==='guide-ai'&&s){copy('Act as an English tutor. My lesson goal: '+data.lessons[n-1][5]+'. Current task: '+s.detail+'. Ask one question at a time, let me try first, correct my main mistakes afterward. My optional notes: '+(g.notes[s.id]||''));return;}
- if(a==='guide-rate'){const [id,r]=b.split('-');if(byCard.has(id)&&/^[0-3]$/.test(r)){state.cards[id]=rateCard(state.cards[id],+r);save();toast('Đã lưu đánh giá và lịch ôn.');}return;}
+ if(a==='guide-rate'){const [id,r]=b.split('-');if(byCard.has(id)&&/^[0-3]$/.test(r)){state.cards[id]=rateCard(state.cards[id],+r);save();document.querySelectorAll('[data-action^="guide-rate:'+id+'-"]').forEach(el=>el.classList.toggle('selected',el.dataset.action==='guide-rate:'+id+'-'+r));toast('Đã lưu đánh giá và lịch ôn.');}return;}
  if(rec?.state==='recording'){toast('Dừng ghi âm và tải bản ghi trước khi chuyển bước.');return;}
  if(timer){toast('Dừng và lưu đồng hồ trước khi chuyển bước.');return;}
  if(a==='guide-select'&&(b==='summary'||p.steps.some(x=>x.id===b)))g.cursor=b;

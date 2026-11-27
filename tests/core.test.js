@@ -9,10 +9,18 @@ test('G5 valid backup round trip; reject malicious/unknown IDs, scores, missing 
 
 import {guidedPlan,guideDay,markGuided,stepDone,syncGuideCheck} from '../core.js';
 test('guided plans preserve 182 days, source minutes, special modes, and stable IDs',()=>{
- const d=JSON.parse(readFileSync(new URL('../data/lessons.json',import.meta.url),'utf8'));
+ const d=JSON.parse(fs.readFileSync(new URL('../data/lessons.json',import.meta.url),'utf8'));
  for(const l of d){const p=guidedPlan(l),core=p.steps.filter(s=>s.key!=='vocab');
  assert.equal(core.reduce((a,s)=>a+s.minutes,0),+l[12]);assert.equal(p.steps.filter(s=>s.key==='vocab').reduce((a,s)=>a+s.minutes,0),+l[12]?20:0);
  assert.equal(new Set(p.steps.map(s=>s.id)).size,p.steps.length);assert.ok(p.steps.every(s=>s.detail&&s.output&&s.title));
  assert.equal(p.kind,+l[12]===0?'rest':+l[0].slice(1)===1?'baseline':+l[2]===6?'assessment':'practice');}
  const p=guidedPlan(d[1]),x={checks:{listen:true}};assert.ok(p.groups[0].steps.every(s=>stepDone(x,s)));markGuided(x,p,p.steps[0].id,false);assert.equal(x.checks.listen,false);assert.ok(!stepDone(x,p.steps[0]));markGuided(x,p,p.steps[0].id,true);assert.equal(x.checks.listen,true);syncGuideCheck(x,p,'listen',false);assert.ok(p.groups[0].steps.every(s=>!stepDone(x,s)));
+});
+
+test('guided notes, progress and cursor survive validated V1-format backup',()=>{
+ const x=fresh(),l=d.lessons[1],p=guidedPlan(l);x.days.D002={checks:{listen:true},coreMin:42,vocabMin:12,notes:'old',writing:'old writing',feedback:'old feedback'};
+ const old=validateBackup(x,d);assert.equal(old.days.D002.writing,'old writing');assert.ok(p.groups[0].steps.every(s=>stepDone(old.days.D002,s)));
+ const g=guideDay(old.days.D002);g.cursor='speak-2';g.notes['speak-1']='new note';g.difficulty='hard';markGuided(old.days.D002,p,'speak-1');
+ const again=validateBackup(JSON.parse(JSON.stringify(old)),d);assert.deepEqual(again.days.D002,old.days.D002);
+ again.days.D002.guided.done['not-a-step']=true;assert.throws(()=>validateBackup(again,d));
 });

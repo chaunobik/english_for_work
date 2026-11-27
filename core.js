@@ -102,8 +102,8 @@ export function guidedPlan(l){
     let detail=body.slice(m.index+m[0].length,selected[i+1]?.index??body.length).trim().replace(/^[;:]\s*/,'');
     if(i===0&&prefix)detail=prefix+' '+detail;
     // Do not give a misleading label for varying listening sequences; use exact action text.
-    const short=detail.split(/[.;\n]/).find(Boolean)||label;
-    const title=key==='listen'?'Lượt '+(i+1)+' · '+label:(captions[key]?.[i]||label);
+    const action=detail.toLowerCase();
+    const title=key==='listen'?(action.includes('đoán nội dung')?'Dự đoán nội dung':/chép đoạn/.test(action)?'Chép đoạn nghe khó':/transcript/.test(action)?'Đối chiếu transcript':/quiz|5 chi tiết/.test(action)?'Làm quiz / ghi chi tiết':/sửa 3 đoạn/.test(action)?'Sửa 3 đoạn khó':/tốc độ gốc/.test(action)?'Nghe lại tốc độ gốc':/kể lại|tóm tắt/.test(action)?'Kể lại / tóm tắt':/không chữ|nghe 2 lượt/.test(action)?'Nghe không nhìn chữ':'Nghe lấy ý chính'):(captions[key]?.[i]||label);
     steps.push(make(key,label,+m[1],detail,i,title));
    });
   }else steps=[make(key,label,total,body,0,n===1?'Đánh giá đầu vào · '+label:exam?'Kiểm tra độc lập · '+label:label)];
@@ -127,7 +127,7 @@ export function markGuided(d,plan,id,checked=true){
  g.done[id]=checked;d.checks[step.key]=group.steps.every(s=>g.done[s.id]===true);
 }
 export function syncGuideCheck(d,plan,key,checked){
- const group=plan.groups.find(g=>g.key===key);if(!group)return;
+ const group=plan.groups.find(g=>g.key===key);if(!group){d.checks[key]=checked;return;}
  const g=guideDay(d);for(const s of group.steps)g.done[s.id]=checked;
  d.checks[key]=checked;
 }
