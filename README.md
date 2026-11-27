@@ -10,6 +10,15 @@
 - Tiến độ: xuất JSON sao lưu, nhập để khôi phục. Không tự đồng bộ nhiều thiết bị.
 - Ghi âm trên thiết bị, tải về nếu muốn giữ. Không nhập dữ liệu mật của công ty.
 
+## Excel nguồn
+[Bản Excel Optimized gốc](source/English_for_Work_182_Days_Optimized.xlsx) — dữ liệu khóa học, công thức và định dạng nguyên bản. Không lưu tiến độ cá nhân vào repository công khai.
+
+Chuyển đổi lại dữ liệu khi cập nhật Excel:
+```sh
+python scripts/migrate.py source/English_for_Work_182_Days_Optimized.xlsx
+npm test
+```
+
 ## Chạy cục bộ
 ```sh
 python -m http.server 8000
