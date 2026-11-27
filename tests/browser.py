@@ -16,7 +16,7 @@ def run(name,fn):
 with sync_playwright() as p:
     browser=p.chromium.launch(executable_path=os.getenv('CHROMIUM_PATH','/usr/bin/chromium'),args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
     context=browser.new_context(viewport={'width':1440,'height':900},permissions=['clipboard-read','clipboard-write','microphone'],accept_downloads=True)
-    page=context.new_page();errors=[];external=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('request',lambda r:external.append(r.url) if not r.url.startswith(url) else None)
+    page=context.new_page();errors=[];external=[];page.on('pageerror',lambda e:errors.append(str(e)));page.on('request',lambda r:external.append(r.url) if not (r.url.startswith(url) or r.url.startswith('blob:'+url)) else None)
     def nav(hash):
         page.goto(url+'#'+hash);page.wait_for_selector('main h1');expect(page.locator('main h1').first).not_to_have_text('Không tải được khóa học');page.wait_for_timeout(80)
     def g3_home():
