@@ -39,20 +39,17 @@ jobs:
             docs/qa-artifacts/*.png
           if-no-files-found: warn
 
-  deploy:
+  package:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: qa
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      pages: read
     outputs:
-      page_url: ${{ steps.deployment.outputs.page_url }}
+      artifact_name: ${{ steps.artifact-name.outputs.name }}
+      artifact_id: ${{ steps.upload.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@v4
       - name: Configure publishing source
@@ -62,12 +59,60 @@ jobs:
           mkdir -p _site
           cp index.html style.css app.js core.js sw.js manifest.webmanifest icon.svg .nojekyll _site/
           cp -R data _site/data
-      - uses: actions/upload-pages-artifact@v3
+          test -s _site/index.html
+          test -s _site/data/vocabulary.json
+      - name: Select unique artifact name for this attempt
+        id: artifact-name
+        run: echo "name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+      - name: Upload Pages artifact
+        id: upload
+        uses: actions/upload-pages-artifact@v4
         with:
           path: _site
-      - name: Deploy after QA passes
+          name: ${{ steps.artifact-name.outputs.name }}
+          retention-days: 7
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Wait for artifact metadata to propagate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: ${{ needs.package.outputs.artifact_name }}
+          ARTIFACT_ID: ${{ needs.package.outputs.artifact_id }}
+        run: |
+          test -n "$ARTIFACT_NAME"
+          test -n "$ARTIFACT_ID"
+          for attempt in $(seq 1 12); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate | jq -e --arg name "$ARTIFACT_NAME" --arg id "$ARTIFACT_ID" '.artifacts[] | select(.name == $name and (.id | tostring) == $id and .expired == false and .size_in_bytes > 0)' > /dev/null; then
+              echo "Artifact $ARTIFACT_NAME ($ARTIFACT_ID) is visible via REST API."
+              # The Pages deploy action uses a separate artifact metadata service.
+              sleep 30
+              exit 0
+            fi
+            echo "Artifact not visible yet: attempt $attempt/12"
+            sleep 10
+          done
+          echo "::error::Pages artifact did not become visible."
+          exit 1
+      - name: Deploy after QA and artifact readiness pass
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.package.outputs.artifact_name }}
   verify-live:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: deploy
